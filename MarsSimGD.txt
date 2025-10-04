@@ -1,0 +1,106 @@
+# MarsSim.gd (Godot 4.x, GDScript 2.0)
+extends Node3D
+
+@onready var pivot: Node3D = $Pivot
+@onready var cam: Camera3D = $Pivot/Camera3D
+@onready var ground: MeshInstance3D = $MarsGround
+@onready var click_marker: MeshInstance3D = $ClickMarker
+
+# --- camera/orbit tunables ---
+var distance := 12.0
+var min_distance := 2.5
+var max_distance := 100.0
+var orbit_sens := 0.15     # deg per pixel
+var pan_sens := 0.01       # world units per pixel
+var pitch_min := -85.0
+var pitch_max :=  85.0
+
+# internal state
+var yaw := 0.0
+var pitch := -20.0
+var is_orbiting := false
+var is_panning := false
+var last_mouse_pos := Vector2.ZERO
+
+func _ready() -> void:
+	# Start camera at correct offset from pivot
+	_update_camera_transform()
+	click_marker.visible = false
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		_handle_mouse_button(event)
+	elif event is InputEventMouseMotion:
+		_handle_mouse_motion(event)
+
+func _handle_mouse_button(e: InputEventMouseButton) -> void:
+	# Wheel zoom
+	if e.button_index == MOUSE_BUTTON_WHEEL_UP and e.pressed:
+		distance = max(min_distance, distance * 0.9)
+		_update_camera_transform()
+	elif e.button_index == MOUSE_BUTTON_WHEEL_DOWN and e.pressed:
+		distance = min(max_distance, distance * 1.1)
+		_update_camera_transform()
+
+	# Begin/End orbit
+	if e.button_index == MOUSE_BUTTON_LEFT:
+		if e.pressed and !Input.is_key_pressed(KEY_SHIFT): # plain LMB = orbit
+			is_orbiting = true
+			last_mouse_pos = e.position
+		elif !e.pressed:
+			is_orbiting = false
+
+	# Begin/End pan (MMB) or (RMB + Alt)
+	if e.button_index == MOUSE_BUTTON_MIDDLE:
+		if e.pressed:
+			is_panning = true
+			last_mouse_pos = e.position
+		else:
+			is_panning = false
+	if e.button_index == MOUSE_BUTTON_RIGHT:
+		if e.pressed and Input.is_key_pressed(KEY_ALT):
+			is_panning = true
+			last_mouse_pos = e.position
+		elif !e.pressed:
+			is_panning = false
+
+	# Shift + Left click = drop/move pointer and retarget pivot
+	if e.button_index == MOUSE_BUTTON_LEFT and e.pressed and Input.is_key_pressed(KEY_SHIFT):
+		var hit := _ground_pick(e.position)
+		if hit.hit:
+			pivot.global_position = hit.position
+			click_marker.global_position = hit.position + Vector3.UP * 0.02
+			click_marker.visible = true
+			_update_camera_transform()
+
+func _handle_mouse_motion(e: InputEventMouseMotion) -> void:
+	if is_orbiting:
+		yaw -= e.relative.x * orbit_sens
+		pitch = clamp(pitch - e.relative.y * orbit_sens, pitch_min, pitch_max)
+		_update_camera_transform()
+	elif is_panning:
+		# pan in camera's right/up plane (screen-aligned)
+		var right := cam.global_transform.basis.x
+		var up := cam.global_transform.basis.y
+		# ignore vertical pan if you prefer; this keeps some up/down panning
+		var delta_world := (-right * e.relative.x + up * e.relative.y) * pan_sens * distance
+		pivot.global_position += delta_world
+		_update_camera_transform()
+
+func _update_camera_transform() -> void:
+	# place camera on a sphere around pivot using yaw/pitch
+	var rot := Basis()
+	rot = rot.rotated(Vector3.UP, deg_to_rad(yaw))
+	rot = rot.rotated(Vector3.RIGHT, deg_to_rad(pitch))
+	var cam_offset := rot * Vector3(0, 0, distance)
+	cam.global_position = pivot.global_position + cam_offset
+	cam.look_at(pivot.global_position, Vector3.UP)
+
+func _ground_pick(screen_pos: Vector2) -> Dictionary:
+	# Cast a ray from the camera onto +Y=0 plane (your "ground")
+	var from := cam.project_ray_origin(screen_pos)
+	var dir := cam.project_ray_normal(screen_pos)
+	var t := -from.y / dir.y if abs(dir.y) > 1e-6 else INF
+	var hit_pos := from + dir * t
+	var valid := t > 0.0 and is_finite(t)
+	return { "hit": valid, "position": hit_pos }
