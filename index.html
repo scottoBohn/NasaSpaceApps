@@ -11,7 +11,7 @@ This needs to send an error if no CSV is detected, and the last thing that the p
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Exoplanet? ...Perchance</title>
 
-    <link rel="icon" type="image/png" src="Images\IMG_2721.png" />
+    <link rel="icon" type="image/png" href="Images/IMG_2721 Small.png" />
 
     <!-- PapaParse CDN (robust CSV parsing) -->
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -319,6 +319,16 @@ This needs to send an error if no CSV is detected, and the last thing that the p
         font-weight: 700;
         font-size: 12px;
       }
+
+      /* Bottom-right logo */
+      #logo {
+        position: fixed; /* stays at bottom-right even when scrolling */
+        bottom: 16px; /* distance from bottom */
+        right: 16px; /* distance from right */
+        width: 300px; /* adjust size as needed */
+        height: auto;
+        z-index: 9999;
+      }
     </style>
   </head>
   <body>
@@ -391,9 +401,7 @@ This needs to send an error if no CSV is detected, and the last thing that the p
               Export cleaned CSV
             </button>
             <button id="resetBtn" class="btn secondary small">Reset</button>
-            <button id="processBtn" class="btn small" disabled>
-              Process Data
-            </button>
+            <button id="processBtn" class="btn small">Process Data</button>
           </div>
 
           <div style="margin-top: 12px" class="muted"></div>
@@ -484,6 +492,7 @@ This needs to send an error if no CSV is detected, and the last thing that the p
         errorEl.style.display = "block";
         errorEl.textContent = msg;
       }
+
       function resetAll() {
         parsedData = [];
         headers = [];
@@ -498,6 +507,10 @@ This needs to send an error if no CSV is detected, and the last thing that the p
         rowCount.textContent = "Rows: 0";
         colCount.textContent = "Columns: 0";
         previewNote.textContent = "Previewing 0 rows";
+
+        // Disable process button on reset
+        processBtn.disabled = true;
+        processBtn.textContent = "Process Data";
       }
 
       // File selection
@@ -536,6 +549,10 @@ This needs to send an error if no CSV is detected, and the last thing that the p
         }
         currentFileName = file.name;
         fileInfo.textContent = file.name;
+
+        // Enable process button when file is loaded
+        processBtn.disabled = false;
+
         // parse with PapaParse for robustness
         Papa.parse(file, {
           header: true,
@@ -740,6 +757,137 @@ This needs to send an error if no CSV is detected, and the last thing that the p
       // Reset
       resetBtn.addEventListener("click", resetAll);
 
+      /*
+  THIS IS THE MOST IMPORTANT PART OF THE PROGRAM
+*/
+      processBtn.addEventListener("click", async () => {
+        // Validation checks
+        if (currentFileName === null) {
+          setError("No file uploaded! \n Please upload a file first!");
+          return;
+        }
+
+        // Check if file is valid type
+        const fileExt = currentFileName.split(".").pop().toLowerCase();
+        if (fileExt !== "csv") {
+          setError("Invalid file type! \n Please upload a CSV file.");
+          return;
+        }
+
+        // Check if we have actual CSV data
+        if (parsedData.length === 0 || headers.length === 0) {
+          setError(
+            "No valid CSV data detected! \n Please check your file format."
+          );
+          return;
+        }
+
+        try {
+          // Disable button during processing
+          processBtn.disabled = true;
+          processBtn.textContent = "Processing...";
+
+          // Convert data to CSV string
+          const csvData = convertToCSVString();
+
+          // Send to API
+          await sendToAPI(csvData);
+
+          // Success handling
+          setSuccess("File processed successfully! Redirecting...");
+
+          // Redirect to another page after successful processing
+          setTimeout(() => {
+            window.location.href = "landingPage.html";
+          }, 2000);
+        } catch (error) {
+          setError(`Processing failed: ${error.message}`);
+        } finally {
+          // Re-enable button
+          processBtn.disabled = false;
+          processBtn.textContent = "Process Data";
+        }
+      });
+
+      // Function to convert current data to CSV string
+      function convertToCSVString() {
+        const cols = headers.filter((h) => visibleCols[h]);
+        if (cols.length === 0) {
+          throw new Error("No columns selected for export");
+        }
+
+        const csvLines = [];
+        // Add headers
+        csvLines.push(cols.map(escapeCSV).join(","));
+
+        // Add data rows
+        parsedData.forEach((row) => {
+          const line = cols
+            .map((c) => escapeCSV(String(row[c] == null ? "" : row[c])))
+            .join(",");
+          csvLines.push(line);
+        });
+
+        return csvLines.join("\n");
+      }
+
+      // Function to send data to API
+      async function sendToAPI(csvData) {
+        const blob = new Blob([csvData], { type: "text/csv" });
+        const formData = new FormData();
+        formData.append("file", blob, currentFileName || "data.csv");
+
+        const apiUrl = "http://localhost:8000/upload-csv";
+
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`API Error: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+
+        // ✅ Save results to localStorage so landingPage.html can access them
+        localStorage.setItem("apiResults", JSON.stringify(result));
+
+        return result;
+      }
+
+      // Enhanced success message function
+      function setSuccess(message) {
+        // Create or get success element
+        let successDiv = document.getElementById("success-message");
+        if (!successDiv) {
+          successDiv = document.createElement("div");
+          successDiv.id = "success-message";
+          successDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                background: #10b981;
+                color: white;
+                border-radius: 8px;
+                z-index: 1000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                font-weight: 500;
+            `;
+          document.body.appendChild(successDiv);
+        }
+
+        successDiv.textContent = message;
+        successDiv.style.display = "block";
+
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+          successDiv.style.display = "none";
+        }, 3000);
+      }
+
       // When cleaning options change, reapply
       [trimCheckbox, dropEmptyCheckbox, previewCount].forEach((el) => {
         el.addEventListener("change", () => {
@@ -760,5 +908,6 @@ This needs to send an error if no CSV is detected, and the last thing that the p
       // initialize
       resetAll();
     </script>
+    <img id="logo" src="Images/IMG_2721.png" alt="Logo" />
   </body>
 </html>
