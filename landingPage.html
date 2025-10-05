@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Name Validator</title>
+
+    <style>
+      :root {
+        --bg1: #101010;
+        --bg2: #4a5065;
+        --card: #794f4f;
+        --muted: #1e1e1f;
+        --accent: #6d28d9;
+        --valid: #10b981;
+        --invalid: #ef4444;
+        --glass: rgba(255, 255, 255, 0.6);
+        --shadow: 0 10px 30px rgba(16, 24, 40, 0.08);
+        --radius: 14px;
+        --mono: "Segoe UI Mono", "Roboto Mono", monospace;
+        --ui-font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+          Roboto, "Helvetica Neue";
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: var(--ui-font);
+        background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
+        color: #0f172a;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        padding: 32px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 24px;
+        min-height: 100vh;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 1200px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.95),
+          rgba(255, 255, 255, 0.9)
+        );
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 1px;
+        border: 1px solid rgba(13, 30, 80, 0.04);
+      }
+
+      /* Left sidebar (controls + info) */
+      .sidebar {
+        padding: 22px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.85),
+          rgba(245, 247, 255, 0.7)
+        );
+      }
+      h1 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: -0.2px;
+      }
+      .subtitle {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+
+      .input-area {
+        margin-top: 18px;
+        border: 2px dashed rgba(99, 102, 241, 0.18);
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.6),
+          rgba(250, 250, 255, 0.6)
+        );
+      }
+      .input-area .big {
+        font-weight: 600;
+        color: var(--accent);
+        font-size: 15px;
+      }
+      .input-area p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        text-align: center;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 12px;
+      }
+      .btn {
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 0;
+        background: var(--accent);
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 6px 18px rgba(99, 102, 241, 0.12);
+      }
+      .btn.secondary {
+        background: transparent;
+        color: var(--accent);
+        border: 1px solid rgba(99, 102, 241, 0.12);
+        box-shadow: none;
+        font-weight: 600;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .small {
+        font-size: 13px;
+        padding: 7px 10px;
+        border-radius: 9px;
+      }
+
+      .meta {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--muted);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .option-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: space-between;
+      }
+      .checkbox {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+      }
+
+      /* Right area: results */
+      .results {
+        padding: 22px;
+        min-height: 400px;
+      }
+      .results-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .file-info {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .controls .small {
+        background: rgba(2, 6, 23, 0.04);
+        color: #07203b;
+        border-radius: 10px;
+        padding: 7px 10px;
+      }
+
+      /* Status toggles */
+      .status-toggle {
+        margin-top: 14px;
+        padding: 12px;
+        border-radius: 10px;
+        background: linear-gradient(180deg, #fff, #fbfbff);
+        border: 1px solid rgba(13, 30, 80, 0.03);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .chip {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(13, 30, 80, 0.06);
+        background: rgba(245, 246, 255, 0.6);
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .chip.off {
+        opacity: 0.38;
+        text-decoration: line-through;
+        background: transparent;
+        border-style: dashed;
+      }
+
+      /* Table */
+      .table-wrap {
+        margin-top: 14px;
+        overflow: auto;
+        border-radius: 10px;
+        border: 1px solid rgba(13, 30, 80, 0.04);
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 700px;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        background: linear-gradient(180deg, #381f1f, #fafcff);
+        padding: 10px 12px;
+        text-align: left;
+        font-size: 13px;
+        border-bottom: 1px solid rgba(13, 30, 80, 0.04);
+        z-index: 1;
+      }
+      tbody td {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(13, 30, 80, 0.04);
+        font-size: 13px;
+        color: #09142a;
+      }
+      tbody tr:nth-child(even) {
+        background: rgba(10, 15, 26, 0.01);
+      }
+
+      .status {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .status.valid {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--valid);
+      }
+      .status.invalid {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--invalid);
+      }
+      .status.pending {
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--accent);
+      }
+
+      .empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 250px;
+        color: var(--muted);
+        font-size: 15px;
+        border-radius: 8px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.6),
+          rgba(250, 250, 255, 0.6)
+        );
+      }
+
+      /* footer row */
+      .results-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 14px;
+        gap: 12px;
+      }
+      .note {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      /* responsive */
+      @media (max-width: 1000px) {
+        .container {
+          grid-template-columns: 1fr;
+          padding-bottom: 20px;
+        }
+        .sidebar {
+          order: 2;
+        }
+        .results {
+          order: 1;
+        }
+      }
+
+      /* tiny helper */
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .pill {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #3b2db7;
+        font-weight: 700;
+        font-size: 12px;
+      }
+      
+      /* Input styling */
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(13, 30, 80, 0.06);
+        font-family: var(--ui-font);
+        font-size: 13px;
+        resize: vertical;
+      }
+      /* Bottom-right logo */
+      #logo {
+        position: fixed;       /* stays at bottom-right even when scrolling */
+        bottom: 16px;          /* distance from bottom */
+        right: 16px;           /* distance from right */
+        width: 300px;           /* adjust size as needed */
+        height: auto;
+        z-index: 9999;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" role="application" aria-label="Name Validator">
+      <div class="sidebar">
+        <h1>Name Validator</h1>
+        <div class="subtitle">
+          Enter names to validate their authenticity. Names will be checked against our validation API.
+        </div>
+
+        <div class="input-area" aria-label="Name input area">
+          <div class="big">Enter names to validate</div>
+          <p>Add names separated by commas or line breaks</p>
+          <textarea id="nameInput" placeholder="John Doe, Jane Smith, Alex Johnson"></textarea>
+          <div style="display: flex; gap: 8px; margin-top: 6px">
+            <button id="validateBtn" class="btn small">Validate Names</button>
+            <button id="clearBtn" class="btn secondary small">Clear</button>
+          </div>
+        </div>
+
+        <div class="meta" aria-live="polite">
+          <div class="option-row">
+            <div class="checkbox">
+              <input id="autoValidate" type="checkbox" checked /><label
+                for="autoValidate"
+                class="muted"
+                >Auto-validate on input</label
+              >
+            </div>
+          </div>
+
+          <div
+            style="
+              display: flex;
+              gap: 8px;
+              align-items: center;
+              margin-top: 8px;
+            "
+          >
+            <label class="muted" for="previewCount">Display rows</label>
+            <input
+              id="previewCount"
+              type="number"
+              min="1"
+              max="200"
+              value="20"
+              style="
+                width: 80px;
+                padding: 6px;
+                border-radius: 8px;
+                border: 1px solid rgba(13, 30, 80, 0.06);
+              "
+            />
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 12px">
+            <button id="exportBtn" class="btn small" disabled>
+              Export Results
+            </button>
+            <button id="resetBtn" class="btn secondary small">Reset All</button>
+          </div>
+
+          <div style="margin-top: 12px" class="muted">
+            <div>Valid names: <span id="validCount">0</span></div>
+            <div>Invalid names: <span id="invalidCount">0</span></div>
+            <div>Pending validation: <span id="pendingCount">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="results" aria-live="polite">
+        <div class="results-head">
+          <div>
+            <div class="file-info" id="fileInfo">
+              No names entered
+            </div>
+            <div
+              id="error"
+              style="color: #9b1236; margin-top: 6px; display: none"
+            ></div>
+          </div>
+          <div class="controls">
+            <div id="totalCount" class="small">Total: 0</div>
+          </div>
+        </div>
+
+        <div
+          id="statusToggles"
+          class="status-toggle"
+          style="display: none"
+          aria-label="Status filters"
+        ></div>
+
+        <div id="tableWrap" class="table-wrap" style="margin-top: 12px">
+          <div class="empty" id="emptyPreview">
+            Validation results will appear here after you enter names.
+          </div>
+          <table
+            id="resultsTable"
+            style="display: none"
+            role="table"
+            aria-label="Validation results table"
+          >
+            <thead id="thead">
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Confidence</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="results-footer">
+          <div class="note" id="previewNote">Showing 0 names</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // References
+      const nameInput = document.getElementById("nameInput");
+      const validateBtn = document.getElementById("validateBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const exportBtn = document.getElementById("exportBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const autoValidateCheckbox = document.getElementById("autoValidate");
+      const previewCount = document.getElementById("previewCount");
+      const thead = document.getElementById("thead");
+      const tbody = document.getElementById("tbody");
+      const resultsTable = document.getElementById("resultsTable");
+      const emptyPreview = document.getElementById("emptyPreview");
+      const fileInfo = document.getElementById("fileInfo");
+      const totalCount = document.getElementById("totalCount");
+      const statusToggles = document.getElementById("statusToggles");
+      const previewNote = document.getElementById("previewNote");
+      const errorEl = document.getElementById("error");
+      const validCount = document.getElementById("validCount");
+      const invalidCount = document.getElementById("invalidCount");
+      const pendingCount = document.getElementById("pendingCount");
+
+      let namesData = []; // array of name objects
+      let visibleStatuses = {
+        valid: true,
+        invalid: true,
+        pending: true
+      };
+
+      // Helpers
+      function setError(msg) {
+        if (!msg) {
+          errorEl.style.display = "none";
+          errorEl.textContent = "";
+          return;
+        }
+        errorEl.style.display = "block";
+        errorEl.textContent = msg;
+      }
+      
+      function resetAll() {
+        namesData = [];
+        nameInput.value = "";
+        tbody.innerHTML = "";
+        statusToggles.innerHTML = "";
+        resultsTable.style.display = "none";
+        emptyPreview.style.display = "flex";
+        fileInfo.textContent = "No names entered";
+        totalCount.textContent = "Total: 0";
+        previewNote.textContent = "Showing 0 names";
+        validCount.textContent = "0";
+        invalidCount.textContent = "0";
+        pendingCount.textContent = "0";
+        exportBtn.disabled = true;
+      }
+
+      // Parse names from input
+      function parseNames() {
+        const input = nameInput.value.trim();
+        if (!input) {
+          setError("Please enter at least one name.");
+          return [];
+        }
+        
+        // Split by commas or new lines
+        const names = input.split(/[\n,]/)
+          .map(name => name.trim())
+          .filter(name => name.length > 0);
+        
+        if (names.length === 0) {
+          setError("No valid names found. Please enter names separated by commas or line breaks.");
+          return [];
+        }
+        
+        setError("");
+        return names;
+      }
+
+      // Validate names (mock API call)
+      function validateNames(names) {
+        return names.map(name => {
+          // Mock validation logic - in a real app, this would be an API call
+          const isValid = Math.random() > 0.3; // 70% chance of being valid
+          const confidence = Math.floor(Math.random() * 40) + 60; // 60-99% confidence
+          
+          return {
+            name,
+            status: isValid ? "valid" : "invalid",
+            confidence: `${confidence}%`,
+            details: isValid ? "Name follows standard naming conventions" : "Name appears to be invalid or fabricated"
+          };
+        });
+      }
+
+      // Process and display names
+      function processNames() {
+        const names = parseNames();
+        if (names.length === 0) return;
+        
+        fileInfo.textContent = `Processing ${names.length} name(s)`;
+        
+        // Show loading state
+        namesData = names.map(name => ({
+          name,
+          status: "pending",
+          confidence: "-",
+          details: "Validating..."
+        }));
+        
+        renderResults();
+        
+        // Simulate API delay
+        setTimeout(() => {
+          const validatedNames = validateNames(names);
+          namesData = validatedNames;
+          renderResults();
+          exportBtn.disabled = false;
+        }, 1500);
+      }
+
+      // Render results table & status toggles
+      function renderResults() {
+        // Update counts
+        totalCount.textContent = "Total: " + namesData.length;
+        
+        const validNames = namesData.filter(n => n.status === "valid").length;
+        const invalidNames = namesData.filter(n => n.status === "invalid").length;
+        const pendingNames = namesData.filter(n => n.status === "pending").length;
+        
+        validCount.textContent = validNames;
+        invalidCount.textContent = invalidNames;
+        pendingCount.textContent = pendingNames;
+
+        // Show status toggles
+        statusToggles.innerHTML = "";
+        if (namesData.length) {
+          statusToggles.style.display = "flex";
+          
+          Object.keys(visibleStatuses).forEach(status => {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = "chip " + (visibleStatuses[status] ? "" : "off");
+            chip.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            chip.title = visibleStatuses[status] ? `Hide ${status} names` : `Show ${status} names`;
+            chip.addEventListener("click", () => {
+              visibleStatuses[status] = !visibleStatuses[status];
+              chip.className = "chip " + (visibleStatuses[status] ? "" : "off");
+              chip.title = visibleStatuses[status] ? `Hide ${status} names` : `Show ${status} names`;
+              renderResults(); // re-render
+            });
+            statusToggles.appendChild(chip);
+          });
+        } else {
+          statusToggles.style.display = "none";
+        }
+
+        // Render table body
+        tbody.innerHTML = "";
+        const maxRows = Math.max(
+          1,
+          Math.min(200, Number(previewCount.value) || 20)
+        );
+        
+        // Filter by visible statuses
+        const filteredData = namesData.filter(n => visibleStatuses[n.status]);
+        const previewRows = filteredData.slice(0, maxRows);
+
+        if (previewRows.length === 0) {
+          resultsTable.style.display = "none";
+          emptyPreview.style.display = "flex";
+          previewNote.textContent = `No names to display with current filters`;
+          return;
+        }
+        
+        emptyPreview.style.display = "none";
+        resultsTable.style.display = "table";
+
+        previewRows.forEach((row, idx) => {
+          const tr = document.createElement("tr");
+          
+          // Name column
+          const nameTd = document.createElement("td");
+          nameTd.textContent = row.name;
+          tr.appendChild(nameTd);
+          
+          // Status column
+          const statusTd = document.createElement("td");
+          const statusSpan = document.createElement("span");
+          statusSpan.className = `status ${row.status}`;
+          statusSpan.textContent = row.status.charAt(0).toUpperCase() + row.status.slice(1);
+          statusTd.appendChild(statusSpan);
+          tr.appendChild(statusTd);
+          
+          // Confidence column
+          const confidenceTd = document.createElement("td");
+          confidenceTd.textContent = row.confidence;
+          tr.appendChild(confidenceTd);
+          
+          // Details column
+          const detailsTd = document.createElement("td");
+          detailsTd.textContent = row.details;
+          tr.appendChild(detailsTd);
+          
+          tbody.appendChild(tr);
+        });
+
+        previewNote.textContent = `Showing ${previewRows.length} name(s) — ${filteredData.length} total with current filters`;
+      }
+
+      // Export results
+      exportBtn.addEventListener("click", () => {
+        if (namesData.length === 0) return;
+        
+        const csvLines = [];
+        csvLines.push(["Name", "Status", "Confidence", "Details"].join(","));
+        
+        namesData.forEach(row => {
+          const line = [
+            escapeCSV(row.name),
+            escapeCSV(row.status),
+            escapeCSV(row.confidence),
+            escapeCSV(row.details)
+          ].join(",");
+          csvLines.push(line);
+        });
+        
+        const csv = csvLines.join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "name-validation-results.csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      });
+
+      // Event listeners
+      validateBtn.addEventListener("click", processNames);
+      clearBtn.addEventListener("click", () => {
+        nameInput.value = "";
+        setError("");
+      });
+      resetBtn.addEventListener("click", resetAll);
+      
+      nameInput.addEventListener("input", () => {
+        if (autoValidateCheckbox.checked && nameInput.value.trim()) {
+          // Debounce the validation
+          clearTimeout(window.autoValidateTimeout);
+          window.autoValidateTimeout = setTimeout(processNames, 1000);
+        }
+      });
+      
+      previewCount.addEventListener("change", renderResults);
+
+      // Utility: escape CSV value
+      function escapeCSV(val) {
+        if (val == null) return "";
+        const v = String(val).replace(/"/g, '""');
+        if (v.search(/["\n,]/g) >= 0) return '"' + v + '"';
+        return v;
+      }
+
+      // initialize
+      resetAll();
+    </script>
+    <img id="logo" src="IMG_2721.png" alt="Logo">
+  </body>
+</html>
