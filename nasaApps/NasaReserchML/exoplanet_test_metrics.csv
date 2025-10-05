@@ -1,0 +1,4 @@
+metric,value
+test_accuracy,0.9984317825405122
+pred_std_dev,0.49999665260007237
+lins_ccc,0.9973849072257525
