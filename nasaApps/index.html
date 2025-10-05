@@ -909,5 +909,51 @@ This needs to send an error if no CSV is detected, and the last thing that the p
       resetAll();
     </script>
     <img id="logo" src="Images/IMG_2721.png" alt="Logo" />
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("uploadForm");
+
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault(); // ⛔ Stop the browser from submitting normally
+
+          const fileInput = document.getElementById("csvFile");
+          const file = fileInput.files[0];
+
+          if (!file) {
+            alert("Please select a CSV file first.");
+            return;
+          }
+
+          // Prepare form data for the API
+          const formData = new FormData();
+          formData.append("file", file);
+
+          try {
+            // Send to your backend API
+            const response = await fetch(form.action, {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(`API Error: ${response.status} - ${errorText}`);
+            }
+
+            const result = await response.json();
+
+            // ✅ Save the results for the landing page
+            localStorage.setItem("apiResults", JSON.stringify(result));
+
+            // Redirect user to landing page
+            window.location.href = "landingPage.html";
+          } catch (error) {
+            console.error("Error uploading CSV:", error);
+            alert("Failed to upload CSV. Check the console for details.");
+          }
+        });
+      });
+    </script>
   </body>
 </html>
