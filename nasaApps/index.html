@@ -798,7 +798,7 @@ This needs to send an error if no CSV is detected, and the last thing that the p
 
           // Redirect to another page after successful processing
           setTimeout(() => {
-            window.location.href = "success.html"; // Change to your target page
+            window.location.href = "landingPage.html";
           }, 2000);
         } catch (error) {
           setError(`Processing failed: ${error.message}`);
@@ -833,21 +833,15 @@ This needs to send an error if no CSV is detected, and the last thing that the p
 
       // Function to send data to API
       async function sendToAPI(csvData) {
-        // Create a Blob from the CSV data
         const blob = new Blob([csvData], { type: "text/csv" });
         const formData = new FormData();
         formData.append("file", blob, currentFileName || "data.csv");
 
-        // API endpoint - update this URL to match your backend
         const apiUrl = "http://localhost:8000/upload-csv";
 
         const response = await fetch(apiUrl, {
           method: "POST",
           body: formData,
-          // If your API requires additional headers, add them here
-          // headers: {
-          //     'Authorization': 'Bearer your-token-here'
-          // }
         });
 
         if (!response.ok) {
@@ -855,7 +849,12 @@ This needs to send an error if no CSV is detected, and the last thing that the p
           throw new Error(`API Error: ${response.status} - ${errorText}`);
         }
 
-        return await response.json();
+        const result = await response.json();
+
+        // ✅ Save results to localStorage so landingPage.html can access them
+        localStorage.setItem("apiResults", JSON.stringify(result));
+
+        return result;
       }
 
       // Enhanced success message function
