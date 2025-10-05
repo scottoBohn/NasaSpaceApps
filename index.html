@@ -1,0 +1,764 @@
+<!--    
+Need to add actionButton which one the processButton is pressed sends the info to the API, which ports it to the machine
+
+This needs to send an error if no CSV is detected, and the last thing that the process needs to do is send us to another page. 
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Exoplanet? ...Perchance</title>
+
+    <link rel="icon" type="image/png" src="Images\IMG_2721.png" />
+
+    <!-- PapaParse CDN (robust CSV parsing) -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+    <style>
+      :root {
+        --bg1: #101010;
+        --bg2: #4a5065;
+        --card: #794f4f;
+        --muted: #1e1e1f;
+        --accent: #6d28d9;
+        --glass: rgba(255, 255, 255, 0.6);
+        --shadow: 0 10px 30px rgba(16, 24, 40, 0.08);
+        --radius: 14px;
+        --mono: "Segoe UI Mono", "Roboto Mono", monospace;
+        --ui-font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+          Roboto, "Helvetica Neue";
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: var(--ui-font);
+        background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
+        color: #0f172a;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        padding: 32px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 24px;
+        min-height: 100vh;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 1200px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.95),
+          rgba(255, 255, 255, 0.9)
+        );
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 1px;
+        border: 1px solid rgba(13, 30, 80, 0.04);
+      }
+
+      /* Left sidebar (upload + options) */
+      .sidebar {
+        padding: 22px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.85),
+          rgba(245, 247, 255, 0.7)
+        );
+      }
+      h1 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: -0.2px;
+      }
+      .subtitle {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+
+      .upload-area {
+        margin-top: 18px;
+        border: 2px dashed rgba(99, 102, 241, 0.18);
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.6),
+          rgba(250, 250, 255, 0.6)
+        );
+      }
+      .upload-area.dragover {
+        border-color: rgba(99, 102, 241, 0.45);
+        box-shadow: 0 8px 30px rgba(99, 102, 241, 0.06) inset;
+        transform: translateY(-3px);
+      }
+      .upload-area .big {
+        font-weight: 600;
+        color: var(--accent);
+        font-size: 15px;
+      }
+      .upload-area p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        text-align: center;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 12px;
+      }
+      .btn {
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 0;
+        background: var(--accent);
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 6px 18px rgba(99, 102, 241, 0.12);
+      }
+      .btn.secondary {
+        background: transparent;
+        color: var(--accent);
+        border: 1px solid rgba(99, 102, 241, 0.12);
+        box-shadow: none;
+        font-weight: 600;
+      }
+      .small {
+        font-size: 13px;
+        padding: 7px 10px;
+        border-radius: 9px;
+      }
+
+      .meta {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--muted);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .option-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: space-between;
+      }
+      .checkbox {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+      }
+
+      /* Right area: preview */
+      .preview {
+        padding: 22px;
+        min-height: 400px;
+      }
+      .preview-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .file-info {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .controls .small {
+        background: rgba(2, 6, 23, 0.04);
+        color: #07203b;
+        border-radius: 10px;
+        padding: 7px 10px;
+      }
+
+      /* Column toggles */
+      .col-toggle {
+        margin-top: 14px;
+        padding: 12px;
+        border-radius: 10px;
+        background: linear-gradient(180deg, #fff, #fbfbff);
+        border: 1px solid rgba(13, 30, 80, 0.03);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .chip {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(13, 30, 80, 0.06);
+        background: rgba(245, 246, 255, 0.6);
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .chip.off {
+        opacity: 0.38;
+        text-decoration: line-through;
+        background: transparent;
+        border-style: dashed;
+      }
+
+      /* Table */
+      .table-wrap {
+        margin-top: 14px;
+        overflow: auto;
+        border-radius: 10px;
+        border: 1px solid rgba(13, 30, 80, 0.04);
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 700px;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        background: linear-gradient(180deg, #381f1f, #fafcff);
+        padding: 10px 12px;
+        text-align: left;
+        font-size: 13px;
+        border-bottom: 1px solid rgba(13, 30, 80, 0.04);
+        z-index: 1;
+      }
+      tbody td {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(13, 30, 80, 0.04);
+        font-size: 13px;
+        color: #09142a;
+      }
+      tbody tr:nth-child(even) {
+        background: rgba(10, 15, 26, 0.01);
+      }
+
+      .empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 250px;
+        color: var(--muted);
+        font-size: 15px;
+        border-radius: 8px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.6),
+          rgba(250, 250, 255, 0.6)
+        );
+      }
+
+      /* footer row */
+      .preview-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 14px;
+        gap: 12px;
+      }
+      .note {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      /* responsive */
+      @media (max-width: 1000px) {
+        .container {
+          grid-template-columns: 1fr;
+          padding-bottom: 20px;
+        }
+        .sidebar {
+          order: 2;
+        }
+        .preview {
+          order: 1;
+        }
+      }
+
+      /* tiny helper */
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .pill {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #3b2db7;
+        font-weight: 700;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" role="application" aria-label="CSV Studio">
+      <div class="sidebar">
+        <h1>Exoplanet? ...Perchance</h1>
+        <div class="subtitle">
+          Upload a CSV, preview it, toggle columns, clean, and export — no
+          backend required.
+        </div>
+
+        <div id="drop" class="upload-area" aria-label="CSV drop area">
+          <div class="big">Drag & drop a CSV file</div>
+          <p>or click to choose a file from your computer (.csv only)</p>
+          <input
+            id="fileInput"
+            type="file"
+            accept=".csv,text/csv"
+            style="display: none"
+          />
+          <div style="display: flex; gap: 8px; margin-top: 6px">
+            <button id="pickBtn" class="btn small">Choose file</button>
+          </div>
+        </div>
+
+        <div class="meta" aria-live="polite">
+          <div class="option-row">
+            <div class="checkbox">
+              <input id="trim" type="checkbox" checked /><label
+                for="trim"
+                class="muted"
+                >Trim whitespace</label
+              >
+            </div>
+            <div class="checkbox">
+              <input id="dropEmpty" type="checkbox" checked /><label
+                for="dropEmpty"
+                class="muted"
+                >Remove empty rows</label
+              >
+            </div>
+          </div>
+
+          <div
+            style="
+              display: flex;
+              gap: 8px;
+              align-items: center;
+              margin-top: 8px;
+            "
+          >
+            <label class="muted" for="previewCount">Preview rows</label>
+            <input
+              id="previewCount"
+              type="number"
+              min="1"
+              max="200"
+              value="10"
+              style="
+                width: 80px;
+                padding: 6px;
+                border-radius: 8px;
+                border: 1px solid rgba(13, 30, 80, 0.06);
+              "
+            />
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 12px">
+            <button id="downloadBtn" class="btn small" disabled>
+              Export cleaned CSV
+            </button>
+            <button id="resetBtn" class="btn secondary small">Reset</button>
+            <button id="processBtn" class="btn small" disabled>
+              Process Data
+            </button>
+          </div>
+
+          <div style="margin-top: 12px" class="muted"></div>
+        </div>
+      </div>
+
+      <div class="preview" aria-live="polite">
+        <div class="preview-head">
+          <div>
+            <div class="file-info" id="fileInfo">
+              No file loaded
+              <span style="margin-left: 8px" class="pill">Local</span>
+            </div>
+            <div
+              id="error"
+              style="color: #9b1236; margin-top: 6px; display: none"
+            ></div>
+          </div>
+          <div class="controls">
+            <div id="rowCount" class="small">Rows: 0</div>
+            <div id="colCount" class="small">Columns: 0</div>
+          </div>
+        </div>
+
+        <div
+          id="colToggles"
+          class="col-toggle"
+          style="display: none"
+          aria-label="Column toggles"
+        ></div>
+
+        <div id="tableWrap" class="table-wrap" style="margin-top: 12px">
+          <div class="empty" id="emptyPreview">
+            Preview will appear here after you upload a CSV.
+          </div>
+          <table
+            id="previewTable"
+            style="display: none"
+            role="table"
+            aria-label="CSV preview table"
+          >
+            <thead id="thead"></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="preview-footer">
+          <div class="note" id="previewNote">Previewing 0 rows</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // References
+      const drop = document.getElementById("drop");
+      const fileInput = document.getElementById("fileInput");
+      const pickBtn = document.getElementById("pickBtn");
+      const sampleBtn = document.getElementById("sampleBtn");
+      const downloadBtn = document.getElementById("downloadBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const processBtn = document.getElementById("processBtn");
+      const previewCount = document.getElementById("previewCount");
+      const trimCheckbox = document.getElementById("trim");
+      const dropEmptyCheckbox = document.getElementById("dropEmpty");
+      const thead = document.getElementById("thead");
+      const tbody = document.getElementById("tbody");
+      const previewTable = document.getElementById("previewTable");
+      const emptyPreview = document.getElementById("emptyPreview");
+      const fileInfo = document.getElementById("fileInfo");
+      const rowCount = document.getElementById("rowCount");
+      const colCount = document.getElementById("colCount");
+      const colToggles = document.getElementById("colToggles");
+      const previewNote = document.getElementById("previewNote");
+      const errorEl = document.getElementById("error");
+
+      let parsedData = []; // array of objects
+      let headers = []; // array of header names
+      let visibleCols = {}; // header -> bool
+      let currentFileName = null;
+
+      // Helpers
+      function setError(msg) {
+        if (!msg) {
+          errorEl.style.display = "none";
+          errorEl.textContent = "";
+          return;
+        }
+        errorEl.style.display = "block";
+        errorEl.textContent = msg;
+      }
+      function resetAll() {
+        parsedData = [];
+        headers = [];
+        visibleCols = {};
+        currentFileName = null;
+        thead.innerHTML = "";
+        tbody.innerHTML = "";
+        colToggles.innerHTML = "";
+        previewTable.style.display = "none";
+        emptyPreview.style.display = "flex";
+        fileInfo.textContent = "No file loaded";
+        rowCount.textContent = "Rows: 0";
+        colCount.textContent = "Columns: 0";
+        previewNote.textContent = "Previewing 0 rows";
+      }
+
+      // File selection
+      pickBtn.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) loadFile(file);
+        fileInput.value = "";
+      });
+
+      // Drag & drop behaviour
+      drop.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        drop.classList.add("dragover");
+      });
+      drop.addEventListener("dragleave", () =>
+        drop.classList.remove("dragover")
+      );
+      drop.addEventListener("drop", (e) => {
+        e.preventDefault();
+        drop.classList.remove("dragover");
+        const f = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f) loadFile(f);
+      });
+      drop.addEventListener("click", () => fileInput.click());
+
+      // Load a file
+      function loadFile(file) {
+        setError("");
+        if (
+          !file.name.toLowerCase().endsWith(".csv") &&
+          file.type !== "text/csv"
+        ) {
+          setError("Please upload a .csv file.");
+          return;
+        }
+        currentFileName = file.name;
+        fileInfo.textContent = file.name;
+        // parse with PapaParse for robustness
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: false,
+          dynamicTyping: false,
+          transformHeader: (h) => (h ? String(h).trim() : h),
+          complete: function (results) {
+            if (results.errors && results.errors.length) {
+              console.warn("Parsing errors", results.errors);
+              // show first error (non-blocking)
+              setError(`Parsing warning: ${results.errors[0].message}`);
+            }
+            parsedData = results.data || [];
+            headers =
+              results.meta && results.meta.fields
+                ? results.meta.fields
+                : parsedData[0]
+                ? Object.keys(parsedData[0])
+                : [];
+            applyCleaningAndRender();
+          },
+          error: function (err) {
+            setError("Failed to parse CSV: " + String(err));
+          },
+        });
+      }
+
+      // Parse string (for sample)
+      function parseCSVString(str, filename = null) {
+        currentFileName = filename || "data.csv";
+        fileInfo.textContent = currentFileName;
+        Papa.parse(str, {
+          header: true,
+          skipEmptyLines: false,
+          dynamicTyping: false,
+          transformHeader: (h) => (h ? String(h).trim() : h),
+          complete: function (results) {
+            parsedData = results.data || [];
+            headers =
+              results.meta && results.meta.fields
+                ? results.meta.fields
+                : parsedData[0]
+                ? Object.keys(parsedData[0])
+                : [];
+            applyCleaningAndRender();
+          },
+        });
+      }
+
+      // Apply cleaning options and render preview
+      function applyCleaningAndRender() {
+        setError("");
+        // Apply trim
+        let working = parsedData.map((row) => {
+          const newRow = {};
+          headers.forEach((h) => {
+            let v = row[h];
+            if (v === null || v === undefined) {
+              newRow[h] = "";
+              return;
+            }
+            if (trimCheckbox.checked && typeof v === "string") v = v.trim();
+            newRow[h] = v;
+          });
+          return newRow;
+        });
+
+        // Remove empty rows
+        if (dropEmptyCheckbox.checked) {
+          working = working.filter((row) =>
+            headers.some((h) => {
+              const v = row[h];
+              return v !== null && v !== undefined && String(v).trim() !== "";
+            })
+          );
+        }
+
+        // Update parsedData copy used for preview/export
+        parsedData = working;
+
+        // initialize visibleCols if needed
+        if (Object.keys(visibleCols).length === 0) {
+          visibleCols = {};
+          headers.forEach((h) => (visibleCols[h] = true));
+        } else {
+          // ensure any new headers are visible by default
+          headers.forEach((h) => {
+            if (visibleCols[h] === undefined) visibleCols[h] = true;
+          });
+        }
+
+        renderPreview();
+      }
+
+      // Render preview table & column toggles
+      function renderPreview() {
+        // Update counts
+        rowCount.textContent = "Rows: " + parsedData.length;
+        colCount.textContent = "Columns: " + headers.length;
+
+        // Show toggles
+        colToggles.innerHTML = "";
+        if (headers.length) {
+          colToggles.style.display = "flex";
+          headers.forEach((h) => {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = "chip " + (visibleCols[h] ? "" : "off");
+            chip.textContent = h;
+            chip.title = visibleCols[h] ? "Hide column" : "Show column";
+            chip.addEventListener("click", () => {
+              visibleCols[h] = !visibleCols[h];
+              chip.className = "chip " + (visibleCols[h] ? "" : "off");
+              chip.title = visibleCols[h] ? "Hide column" : "Show column";
+              renderPreview(); // re-render
+            });
+            colToggles.appendChild(chip);
+          });
+        } else {
+          colToggles.style.display = "none";
+        }
+
+        // Render table head
+        thead.innerHTML = "";
+        const headRow = document.createElement("tr");
+        headers.forEach((h) => {
+          if (!visibleCols[h]) return;
+          const th = document.createElement("th");
+          th.textContent = h;
+          headRow.appendChild(th);
+        });
+        if (headRow.children.length === 0) {
+          thead.innerHTML = "";
+        } else {
+          thead.appendChild(headRow);
+        }
+
+        // Render body (previewCount rows)
+        tbody.innerHTML = "";
+        const maxRows = Math.max(
+          1,
+          Math.min(200, Number(previewCount.value) || 10)
+        );
+        const previewRows = parsedData.slice(0, maxRows);
+
+        if (previewRows.length === 0 || headers.length === 0) {
+          previewTable.style.display = "none";
+          emptyPreview.style.display = "flex";
+          previewNote.textContent = `Previewing 0 rows`;
+          downloadBtn.disabled = true;
+          return;
+        }
+        emptyPreview.style.display = "none";
+        previewTable.style.display = "table";
+
+        previewRows.forEach((row, idx) => {
+          const tr = document.createElement("tr");
+          headers.forEach((h) => {
+            if (!visibleCols[h]) return;
+            const td = document.createElement("td");
+            let val = row[h];
+            if (val === null || val === undefined) val = "";
+            td.textContent = String(val);
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+
+        previewNote.textContent = `Previewing ${previewRows.length} row(s) — showing first ${maxRows} of ${parsedData.length}`;
+        downloadBtn.disabled = parsedData.length === 0;
+      }
+
+      // Export cleaned CSV (visible columns only)
+      downloadBtn.addEventListener("click", () => {
+        if (parsedData.length === 0) return;
+        const cols = headers.filter((h) => visibleCols[h]);
+        if (cols.length === 0) {
+          setError("No columns selected for export.");
+          return;
+        }
+
+        const csvLines = [];
+        csvLines.push(cols.map(escapeCSV).join(","));
+        parsedData.forEach((row) => {
+          const line = cols
+            .map((c) => escapeCSV(String(row[c] == null ? "" : row[c])))
+            .join(",");
+          csvLines.push(line);
+        });
+        const csv = csvLines.join("\\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "cleaned-" + (currentFileName || "data.csv");
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      });
+
+      // Reset
+      resetBtn.addEventListener("click", resetAll);
+
+      // When cleaning options change, reapply
+      [trimCheckbox, dropEmptyCheckbox, previewCount].forEach((el) => {
+        el.addEventListener("change", () => {
+          // parse & reapply cleaning using existing original data if possible
+          applyCleaningAndRender();
+        });
+      });
+
+      // Utility: escape CSV value (basic)
+      function escapeCSV(val) {
+        if (val == null) return "";
+        // replace any " with ""
+        const v = String(val).replace(/"/g, '""');
+        if (v.search(/["\\n,]/g) >= 0) return '"' + v + '"';
+        return v;
+      }
+
+      // initialize
+      resetAll();
+    </script>
+  </body>
+</html>
